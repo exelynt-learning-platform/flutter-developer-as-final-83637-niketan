@@ -12,8 +12,8 @@ final serviceLocator = GetIt.instance;
 Future<void> initializeDependencies() async {
   serviceLocator.registerLazySingleton<EmployeeDashboardRepo>(() => EmployeeDashboardRepoImpl());
   serviceLocator.registerLazySingleton<GetAllEmployeesUseCase>(() => GetAllEmployeesUseCase());
-  serviceLocator.registerLazySingleton<EmployeeDashboardBloc>(() => EmployeeDashboardBloc());
+  serviceLocator.registerFactory<EmployeeDashboardBloc>(() => EmployeeDashboardBloc());
   serviceLocator.registerLazySingleton<AuthRepository>(() => AuthRepositoryImpl());
 
-  serviceLocator.registerLazySingleton<AuthBloc>(() => AuthBloc(authRepository: serviceLocator<AuthRepository>()));
+  serviceLocator.registerFactory<AuthBloc>(() => AuthBloc(authRepository: serviceLocator<AuthRepository>()));
 }

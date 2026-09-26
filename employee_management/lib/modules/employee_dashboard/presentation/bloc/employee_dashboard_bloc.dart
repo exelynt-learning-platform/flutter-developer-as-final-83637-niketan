@@ -34,24 +34,11 @@ class EmployeeDashboardBloc extends Bloc<EmployeeDashboardEvent, EmployeeDashboa
 
     try {
       final bool isCreated = await serviceLocator<GetAllEmployeesUseCase>().createEmployee(event.request);
-
-      if (!isCreated) {
-        emit(CreateEmployeeFailure(message: 'Failed to create employee'));
-        return;
-      }
-
-      final refreshedEmployees = await serviceLocator<GetAllEmployeesUseCase>().getAllEmployees();
-      employees = refreshedEmployees;
-
-      final createdEmployee = refreshedEmployees.isNotEmpty ? refreshedEmployees.last : null;
-
-      if (createdEmployee != null) {
-        emit(CreateEmployeeSuccess(employee: createdEmployee));
+      if (isCreated) {
+        emit(CreateEmployeeSuccess(employee: employees![0]));
       } else {
-        emit(EmployeeDashboardSuccess(employees: refreshedEmployees));
+        emit(CreateEmployeeFailure(message: "failed"));
       }
-
-      add(GetAllEmployeesEvent());
     } catch (e) {
       emit(CreateEmployeeFailure(message: e.toString()));
     }

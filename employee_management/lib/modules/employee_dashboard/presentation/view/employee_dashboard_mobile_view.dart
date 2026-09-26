@@ -94,7 +94,8 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardMobileView> {
                   ],
                 ),
                 content: Text(
-                  'Are you sure you want to delete ${employee.name}?',
+                  'Are you sure you want to delete ${employee.name}?\n\n'
+                  'This action cannot be undone.',
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
                 actions: [
@@ -129,32 +130,22 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardMobileView> {
     );
   }
 
-  void _disposeControllers(List<TextEditingController> controllers) {
-    for (final controller in controllers) {
-      controller.dispose();
-    }
-  }
-
   void _showEditEmployeeDialog(GetAllEmployeesAttributeModel employee) {
-    final controllers = <TextEditingController>[
-      TextEditingController(text: employee.name ?? ''),
-      TextEditingController(text: employee.avatar ?? ''),
-      TextEditingController(text: employee.emailId ?? ''),
-      TextEditingController(text: employee.mobile ?? ''),
-      TextEditingController(text: employee.country ?? ''),
-      TextEditingController(text: employee.state ?? ''),
-      TextEditingController(text: employee.district ?? ''),
-      TextEditingController(text: employee.email ?? ''),
-    ];
+    final nameController = TextEditingController(text: employee.name ?? '');
 
-    final nameController = controllers[0];
-    final avatarController = controllers[1];
-    final emailIdController = controllers[2];
-    final mobileController = controllers[3];
-    final countryController = controllers[4];
-    final stateController = controllers[5];
-    final districtController = controllers[6];
-    final emailController = controllers[7];
+    final avatarController = TextEditingController(text: employee.avatar ?? '');
+
+    final emailIdController = TextEditingController(text: employee.emailId ?? '');
+
+    final mobileController = TextEditingController(text: employee.mobile ?? '');
+
+    final countryController = TextEditingController(text: employee.country ?? '');
+
+    final stateController = TextEditingController(text: employee.state ?? '');
+
+    final districtController = TextEditingController(text: employee.district ?? '');
+
+    final emailController = TextEditingController(text: employee.email ?? '');
 
     showDialog(
       context: context,
@@ -164,7 +155,6 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardMobileView> {
           child: BlocConsumer<EmployeeDashboardBloc, EmployeeDashboardState>(
             listener: (context, state) {
               if (state is UpdateEmployeeSuccess) {
-                _disposeControllers(controllers);
                 Navigator.pop(dialogContext);
 
                 ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(content: Text('Employee updated successfully')));
@@ -277,7 +267,6 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardMobileView> {
                     onPressed: isUpdating
                         ? null
                         : () {
-                            _disposeControllers(controllers);
                             Navigator.pop(dialogContext);
                           },
                     child: const Text('Cancel'),
@@ -419,25 +408,14 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardMobileView> {
   }
 
   void _showAddEmployeeDialog() {
-    final controllers = <TextEditingController>[
-      TextEditingController(),
-      TextEditingController(),
-      TextEditingController(),
-      TextEditingController(),
-      TextEditingController(),
-      TextEditingController(),
-      TextEditingController(),
-      TextEditingController(),
-    ];
-
-    final nameController = controllers[0];
-    final avatarController = controllers[1];
-    final emailIdController = controllers[2];
-    final mobileController = controllers[3];
-    final countryController = controllers[4];
-    final stateController = controllers[5];
-    final districtController = controllers[6];
-    final emailController = controllers[7];
+    final nameController = TextEditingController();
+    final avatarController = TextEditingController();
+    final emailIdController = TextEditingController();
+    final mobileController = TextEditingController();
+    final countryController = TextEditingController();
+    final stateController = TextEditingController();
+    final districtController = TextEditingController();
+    final emailController = TextEditingController();
 
     showDialog(
       context: context,
@@ -447,7 +425,6 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardMobileView> {
           child: BlocConsumer<EmployeeDashboardBloc, EmployeeDashboardState>(
             listener: (context, state) {
               if (state is CreateEmployeeSuccess) {
-                _disposeControllers(controllers);
                 Navigator.pop(dialogContext);
 
                 ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(content: Text('Employee created successfully')));
@@ -607,7 +584,6 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardMobileView> {
                     onPressed: isCreating
                         ? null
                         : () {
-                            _disposeControllers(controllers);
                             Navigator.pop(dialogContext);
                           },
                     child: const Text('Cancel'),
@@ -939,9 +915,7 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardMobileView> {
     final colorScheme = theme.colorScheme;
 
     return DropdownButtonFormField<String>(
-      value: _selectedFilter,
-      isExpanded: true,
-      menuMaxHeight: 280,
+      initialValue: _selectedFilter,
       decoration: InputDecoration(
         labelText: 'Filter employees',
         prefixIcon: Icon(Icons.filter_list_rounded, color: colorScheme.primary),
@@ -1152,7 +1126,7 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardMobileView> {
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: employees.length,
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: crossAxisCount,
+                  crossAxisCount: 2,
                   crossAxisSpacing: 16,
                   mainAxisSpacing: 16,
                   mainAxisExtent: 330,
