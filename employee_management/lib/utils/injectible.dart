@@ -10,9 +10,24 @@ import 'package:get_it/get_it.dart';
 final serviceLocator = GetIt.instance;
 
 Future<void> initializeDependencies() async {
+  // --------------------------------------------------
+  // Employee Dashboard
+  // --------------------------------------------------
+
   serviceLocator.registerLazySingleton<EmployeeDashboardRepo>(() => EmployeeDashboardRepoImpl());
-  serviceLocator.registerLazySingleton<GetAllEmployeesUseCase>(() => GetAllEmployeesUseCase());
-  serviceLocator.registerFactory<EmployeeDashboardBloc>(() => EmployeeDashboardBloc());
+
+  serviceLocator.registerLazySingleton<GetAllEmployeesUseCase>(
+    () => GetAllEmployeesUseCase(repository: serviceLocator<EmployeeDashboardRepo>()),
+  );
+
+  serviceLocator.registerFactory<EmployeeDashboardBloc>(
+    () => EmployeeDashboardBloc(getAllEmployeesUseCase: serviceLocator<GetAllEmployeesUseCase>()),
+  );
+
+  // --------------------------------------------------
+  // Authentication
+  // --------------------------------------------------
+
   serviceLocator.registerLazySingleton<AuthRepository>(() => AuthRepositoryImpl());
 
   serviceLocator.registerFactory<AuthBloc>(() => AuthBloc(authRepository: serviceLocator<AuthRepository>()));

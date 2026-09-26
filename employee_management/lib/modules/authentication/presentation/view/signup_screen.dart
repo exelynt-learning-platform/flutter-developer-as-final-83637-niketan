@@ -53,6 +53,14 @@ class _SignupScreenState extends State<SignupScreen> {
                 if (state is AuthError) {
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.message)));
                 }
+
+                if (state is RegistrationSuccess) {
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(const SnackBar(content: Text('Account created successfully. Please login.')));
+
+                  context.pop();
+                }
               },
               builder: (context, state) {
                 final isLoading = state is AuthLoading;
@@ -136,9 +144,11 @@ class _SignupScreenState extends State<SignupScreen> {
                       const SizedBox(height: 15),
 
                       TextButton(
-                        onPressed: () {
-                          context.pop();
-                        },
+                        onPressed: isLoading
+                            ? null
+                            : () {
+                                context.pop();
+                              },
                         child: const Text('Already have an account? Login'),
                       ),
                     ],

@@ -1,10 +1,11 @@
 import 'package:employee_management/modules/authentication/presentation/bloc/auth_bloc.dart';
-import 'package:employee_management/modules/employee_dashboard/data/model/create_employee_request_model.dart';
 import 'package:employee_management/modules/employee_dashboard/domain/entity/get_all_employees_attribute_model.dart';
 import 'package:employee_management/modules/employee_dashboard/presentation/bloc/employee_dashboard_bloc.dart';
-import 'package:employee_management/modules/employee_dashboard/presentation/widgets/detail_row_widget.dart';
-import 'package:employee_management/modules/employee_dashboard/presentation/widgets/employee_avatar.dart';
+import 'package:employee_management/modules/employee_dashboard/presentation/widgets/dialogs/add_employee_dialog.dart';
+import 'package:employee_management/modules/employee_dashboard/presentation/widgets/dialogs/delete_employee_dialog.dart';
+import 'package:employee_management/modules/employee_dashboard/presentation/widgets/dialogs/edit_employee_dialog.dart';
 import 'package:employee_management/modules/employee_dashboard/presentation/widgets/employee_card_widget.dart';
+import 'package:employee_management/modules/employee_dashboard/presentation/widgets/employee_details_bottom_sheet.dart';
 import 'package:employee_management/utils/theme_controller.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -58,247 +59,22 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardMobileView> {
   void _showDeleteDialog(GetAllEmployeesAttributeModel employee) {
     showDialog(
       context: context,
-      builder: (dialogContext) {
+      builder: (_) {
         return BlocProvider.value(
           value: context.read<EmployeeDashboardBloc>(),
-          child: BlocConsumer<EmployeeDashboardBloc, EmployeeDashboardState>(
-            listener: (context, state) {
-              if (state is DeleteEmployeeSuccess) {
-                Navigator.pop(dialogContext);
-
-                ScaffoldMessenger.of(this.context).showSnackBar(SnackBar(content: Text('${employee.name} deleted successfully')));
-              }
-
-              if (state is DeleteEmployeeFailure) {
-                Navigator.pop(dialogContext);
-
-                ScaffoldMessenger.of(this.context).showSnackBar(SnackBar(content: Text('Failed to delete ${employee.name}')));
-              }
-            },
-            builder: (context, state) {
-              final bool isDeleting = state is DeleteEmployeeLoading;
-              return AlertDialog(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
-                contentPadding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
-                actionsPadding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                title: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(color: Theme.of(context).colorScheme.errorContainer, shape: BoxShape.circle),
-                      child: Icon(Icons.delete_outline_rounded, color: Theme.of(context).colorScheme.onErrorContainer),
-                    ),
-                    const SizedBox(width: 12),
-                    const Text('Delete Employee'),
-                  ],
-                ),
-                content: Text(
-                  'Are you sure you want to delete ${employee.name}?\n\n'
-                  'This action cannot be undone.',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: isDeleting
-                        ? null
-                        : () {
-                            Navigator.pop(dialogContext);
-                          },
-                    child: const Text('Cancel'),
-                  ),
-                  FilledButton(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: Theme.of(context).colorScheme.error,
-                      foregroundColor: Theme.of(context).colorScheme.onError,
-                    ),
-                    onPressed: isDeleting
-                        ? null
-                        : () {
-                            context.read<EmployeeDashboardBloc>().add(DeleteEmployeeEvent(id: employee.id ?? ''));
-                          },
-                    child: isDeleting
-                        ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Text('Delete'),
-                  ),
-                ],
-              );
-            },
-          ),
+          child: DeleteEmployeeDialog(employee: employee),
         );
       },
     );
   }
 
   void _showEditEmployeeDialog(GetAllEmployeesAttributeModel employee) {
-    final nameController = TextEditingController(text: employee.name ?? '');
-
-    final avatarController = TextEditingController(text: employee.avatar ?? '');
-
-    final emailIdController = TextEditingController(text: employee.emailId ?? '');
-
-    final mobileController = TextEditingController(text: employee.mobile ?? '');
-
-    final countryController = TextEditingController(text: employee.country ?? '');
-
-    final stateController = TextEditingController(text: employee.state ?? '');
-
-    final districtController = TextEditingController(text: employee.district ?? '');
-
-    final emailController = TextEditingController(text: employee.email ?? '');
-
     showDialog(
       context: context,
-      builder: (dialogContext) {
+      builder: (_) {
         return BlocProvider.value(
           value: context.read<EmployeeDashboardBloc>(),
-          child: BlocConsumer<EmployeeDashboardBloc, EmployeeDashboardState>(
-            listener: (context, state) {
-              if (state is UpdateEmployeeSuccess) {
-                Navigator.pop(dialogContext);
-
-                ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(content: Text('Employee updated successfully')));
-              }
-
-              if (state is UpdateEmployeeFailure) {
-                ScaffoldMessenger.of(
-                  this.context,
-                ).showSnackBar(SnackBar(content: Text('Failed to update employee: ${state.message}')));
-              }
-            },
-            builder: (context, state) {
-              final bool isUpdating = state is UpdateEmployeeLoading;
-
-              return AlertDialog(
-                title: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(color: Theme.of(context).colorScheme.primaryContainer, shape: BoxShape.circle),
-                      child: Icon(Icons.edit_rounded, color: Theme.of(context).colorScheme.onPrimaryContainer),
-                    ),
-
-                    const SizedBox(width: 12),
-
-                    const Text('Edit Employee'),
-                  ],
-                ),
-
-                content: SizedBox(
-                  width: 500,
-                  child: SingleChildScrollView(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        TextField(
-                          controller: nameController,
-                          enabled: !isUpdating,
-                          decoration: const InputDecoration(labelText: 'Name', prefixIcon: Icon(Icons.person_outline)),
-                        ),
-
-                        const SizedBox(height: 12),
-
-                        TextField(
-                          controller: avatarController,
-                          enabled: !isUpdating,
-                          decoration: const InputDecoration(labelText: 'Avatar URL', prefixIcon: Icon(Icons.image_outlined)),
-                        ),
-
-                        const SizedBox(height: 12),
-
-                        TextField(
-                          controller: emailIdController,
-                          enabled: !isUpdating,
-                          keyboardType: TextInputType.emailAddress,
-                          decoration: const InputDecoration(labelText: 'Email ID', prefixIcon: Icon(Icons.email_outlined)),
-                        ),
-
-                        const SizedBox(height: 12),
-
-                        TextField(
-                          controller: mobileController,
-                          enabled: !isUpdating,
-                          keyboardType: TextInputType.phone,
-                          decoration: const InputDecoration(labelText: 'Mobile', prefixIcon: Icon(Icons.phone_outlined)),
-                        ),
-
-                        const SizedBox(height: 12),
-
-                        TextField(
-                          controller: countryController,
-                          enabled: !isUpdating,
-                          decoration: const InputDecoration(labelText: 'Country', prefixIcon: Icon(Icons.public)),
-                        ),
-
-                        const SizedBox(height: 12),
-
-                        TextField(
-                          controller: stateController,
-                          enabled: !isUpdating,
-                          decoration: const InputDecoration(labelText: 'State', prefixIcon: Icon(Icons.location_city_outlined)),
-                        ),
-
-                        const SizedBox(height: 12),
-
-                        TextField(
-                          controller: districtController,
-                          enabled: !isUpdating,
-                          decoration: const InputDecoration(labelText: 'District', prefixIcon: Icon(Icons.location_on_outlined)),
-                        ),
-
-                        const SizedBox(height: 12),
-
-                        TextField(
-                          controller: emailController,
-                          enabled: !isUpdating,
-                          keyboardType: TextInputType.emailAddress,
-                          decoration: const InputDecoration(
-                            labelText: 'Alternate Email',
-                            prefixIcon: Icon(Icons.alternate_email),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                actions: [
-                  TextButton(
-                    onPressed: isUpdating
-                        ? null
-                        : () {
-                            Navigator.pop(dialogContext);
-                          },
-                    child: const Text('Cancel'),
-                  ),
-
-                  FilledButton(
-                    onPressed: isUpdating
-                        ? null
-                        : () {
-                            final request = CreateEmployeeRequestModel(
-                              name: nameController.text.trim(),
-                              avatar: avatarController.text.trim(),
-                              emailId: emailIdController.text.trim(),
-                              mobile: mobileController.text.trim(),
-                              country: countryController.text.trim(),
-                              state: stateController.text.trim(),
-                              district: districtController.text.trim(),
-                              email: emailController.text.trim(),
-                            );
-
-                            context.read<EmployeeDashboardBloc>().add(
-                              UpdateEmployeeEvent(id: employee.id ?? '', request: request),
-                            );
-                          },
-                    child: isUpdating
-                        ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Text('Update'),
-                  ),
-                ],
-              );
-            },
-          ),
+          child: EditEmployeeDialog(employee: employee),
         );
       },
     );
@@ -308,48 +84,8 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardMobileView> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (context) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    EmployeeAvatar(name: employee.name ?? "", avatarUrl: employee.avatar, radius: 28),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            employee.name ?? "",
-                            style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 4),
-                          Text('Employee ID: ${employee.id ?? ""}', style: Theme.of(context).textTheme.bodyMedium),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                DetailRowWidget(icon: Icons.email_outlined, label: 'Email', value: employee.emailId ?? ""),
-                DetailRowWidget(icon: Icons.alternate_email, label: 'Alternate Email', value: employee.email ?? ""),
-                DetailRowWidget(icon: Icons.phone_outlined, label: 'Mobile', value: employee.mobile ?? ""),
-                DetailRowWidget(icon: Icons.public, label: 'Country', value: employee.country ?? ""),
-                DetailRowWidget(icon: Icons.location_city_outlined, label: 'State', value: employee.state ?? ""),
-                DetailRowWidget(icon: Icons.location_on_outlined, label: 'District', value: employee.district ?? ""),
-                if (employee.createdAt != null) ...[
-                  DetailRowWidget(icon: Icons.calendar_today_outlined, label: 'Created At', value: employee.createdAt!),
-                ],
-                const SizedBox(height: 16),
-              ],
-            ),
-          ),
-        );
+      builder: (_) {
+        return EmployeeDetailsBottomSheet(employee: employee);
       },
     );
   }
@@ -408,214 +144,10 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardMobileView> {
   }
 
   void _showAddEmployeeDialog() {
-    final nameController = TextEditingController();
-    final avatarController = TextEditingController();
-    final emailIdController = TextEditingController();
-    final mobileController = TextEditingController();
-    final countryController = TextEditingController();
-    final stateController = TextEditingController();
-    final districtController = TextEditingController();
-    final emailController = TextEditingController();
-
     showDialog(
       context: context,
-      builder: (dialogContext) {
-        return BlocProvider.value(
-          value: context.read<EmployeeDashboardBloc>(),
-          child: BlocConsumer<EmployeeDashboardBloc, EmployeeDashboardState>(
-            listener: (context, state) {
-              if (state is CreateEmployeeSuccess) {
-                Navigator.pop(dialogContext);
-
-                ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(content: Text('Employee created successfully')));
-              }
-
-              if (state is CreateEmployeeFailure) {
-                ScaffoldMessenger.of(
-                  this.context,
-                ).showSnackBar(SnackBar(content: Text('Failed to create employee: ${state.message}')));
-              }
-            },
-            builder: (context, state) {
-              final bool isCreating = state is CreateEmployeeLoading;
-
-              return AlertDialog(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
-                contentPadding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
-                actionsPadding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-
-                title: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(color: Theme.of(context).colorScheme.primaryContainer, shape: BoxShape.circle),
-                      child: Icon(Icons.person_add_alt_1_rounded, color: Theme.of(context).colorScheme.onPrimaryContainer),
-                    ),
-                    const SizedBox(width: 12),
-                    const Text('Add Employee'),
-                  ],
-                ),
-
-                content: SizedBox(
-                  width: 520,
-                  child: SingleChildScrollView(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        TextField(
-                          controller: nameController,
-                          enabled: !isCreating,
-                          textInputAction: TextInputAction.next,
-                          decoration: const InputDecoration(
-                            labelText: 'Name',
-                            hintText: 'Enter employee name',
-                            prefixIcon: Icon(Icons.person_outline),
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        TextField(
-                          controller: avatarController,
-                          enabled: !isCreating,
-                          textInputAction: TextInputAction.next,
-                          decoration: const InputDecoration(
-                            labelText: 'Avatar URL',
-                            hintText: 'Enter avatar URL',
-                            prefixIcon: Icon(Icons.image_outlined),
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        TextField(
-                          controller: emailIdController,
-                          enabled: !isCreating,
-                          textInputAction: TextInputAction.next,
-                          decoration: const InputDecoration(
-                            labelText: 'Employee Email ID',
-                            hintText: 'Enter employee email ID',
-                            prefixIcon: Icon(Icons.badge_outlined),
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        TextField(
-                          controller: mobileController,
-                          enabled: !isCreating,
-                          keyboardType: TextInputType.phone,
-                          textInputAction: TextInputAction.next,
-                          decoration: const InputDecoration(
-                            labelText: 'Mobile',
-                            hintText: 'Enter mobile number',
-                            prefixIcon: Icon(Icons.phone_outlined),
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        TextField(
-                          controller: countryController,
-                          enabled: !isCreating,
-                          textInputAction: TextInputAction.next,
-                          decoration: const InputDecoration(
-                            labelText: 'Country',
-                            hintText: 'Enter country',
-                            prefixIcon: Icon(Icons.public_outlined),
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        TextField(
-                          controller: stateController,
-                          enabled: !isCreating,
-                          textInputAction: TextInputAction.next,
-                          decoration: const InputDecoration(
-                            labelText: 'State',
-                            hintText: 'Enter state',
-                            prefixIcon: Icon(Icons.map_outlined),
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        TextField(
-                          controller: districtController,
-                          enabled: !isCreating,
-                          textInputAction: TextInputAction.next,
-                          decoration: const InputDecoration(
-                            labelText: 'District',
-                            hintText: 'Enter district',
-                            prefixIcon: Icon(Icons.location_city_outlined),
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        TextField(
-                          controller: emailController,
-                          enabled: !isCreating,
-                          keyboardType: TextInputType.emailAddress,
-                          textInputAction: TextInputAction.done,
-                          decoration: const InputDecoration(
-                            labelText: 'Email',
-                            hintText: 'Enter email address',
-                            prefixIcon: Icon(Icons.email_outlined),
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                actions: [
-                  TextButton(
-                    onPressed: isCreating
-                        ? null
-                        : () {
-                            Navigator.pop(dialogContext);
-                          },
-                    child: const Text('Cancel'),
-                  ),
-
-                  FilledButton.icon(
-                    onPressed: isCreating
-                        ? null
-                        : () {
-                            final request = CreateEmployeeRequestModel(
-                              name: nameController.text.trim(),
-                              avatar: avatarController.text.trim(),
-                              emailId: emailIdController.text.trim(),
-                              mobile: mobileController.text.trim(),
-                              country: countryController.text.trim(),
-                              state: stateController.text.trim(),
-                              district: districtController.text.trim(),
-                              email: emailController.text.trim(),
-                            );
-
-                            context.read<EmployeeDashboardBloc>().add(CreateEmployeeEvent(request: request));
-                          },
-                    icon: isCreating
-                        ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.check_rounded),
-                    label: Text(isCreating ? 'Creating...' : 'Create Employee'),
-                  ),
-                ],
-              );
-            },
-          ),
-        );
+      builder: (_) {
+        return BlocProvider.value(value: context.read<EmployeeDashboardBloc>(), child: const AddEmployeeDialog());
       },
     );
   }
@@ -817,36 +349,7 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardMobileView> {
       ),
     );
   }
-  // Widget _buildSearchAndFilter(BuildContext context) {
-  //   return Card(
-  //     elevation: 0,
-  //     margin: EdgeInsets.zero,
-  //     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-  //     child: Padding(
-  //       padding: const EdgeInsets.all(16),
-  //       child: LayoutBuilder(
-  //         builder: (context, constraints) {
-  //           final isSmall = constraints.maxWidth < 640;
 
-  //           if (isSmall) {
-  //             return Column(
-  //               crossAxisAlignment: CrossAxisAlignment.stretch,
-  //               children: [_buildSearchField(), const SizedBox(height: 12), _buildFilterDropdown()],
-  //             );
-  //           }
-
-  //           return Row(
-  //             children: [
-  //               Expanded(child: _buildSearchField()),
-  //               const SizedBox(width: 12),
-  //               SizedBox(width: 200, child: _buildFilterDropdown()),
-  //             ],
-  //           );
-  //         },
-  //       ),
-  //     ),
-  //   );
-  // }
   Widget _buildSearchField() {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
@@ -884,32 +387,6 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardMobileView> {
     );
   }
 
-  // Widget _buildSearchField() {
-  //   return TextField(
-  //     controller: _searchController,
-  //     onChanged: (_) => setState(() {}),
-  //     textInputAction: TextInputAction.search,
-  //     decoration: InputDecoration(
-  //       hintText: _selectedFilter == 'ID' ? 'Search by employee ID' : 'Search by $_selectedFilter',
-  //       prefixIcon: const Icon(Icons.search_rounded),
-  //       suffixIcon: _searchController.text.isNotEmpty
-  //           ? IconButton(
-  //               onPressed: () {
-  //                 _searchController.clear();
-  //                 setState(() {});
-  //               },
-  //               icon: const Icon(Icons.clear_rounded),
-  //             )
-  //           : null,
-  //       filled: true,
-  //       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-  //       enabledBorder: OutlineInputBorder(
-  //         borderRadius: BorderRadius.circular(12),
-  //         borderSide: BorderSide(color: Colors.grey.shade300),
-  //       ),
-  //     ),
-  //   );
-  // }
   Widget _buildFilterDropdown() {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
@@ -950,29 +427,7 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardMobileView> {
       },
     );
   }
-  // Widget _buildFilterDropdown() {
-  //   return DropdownButtonFormField<String>(
-  //     initialValue: _selectedFilter,
-  //     decoration: InputDecoration(
-  //       labelText: 'Filter by',
-  //       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-  //     ),
-  //     items: const [
-  //       DropdownMenuItem(value: 'ID', child: Text('ID')),
-  //       DropdownMenuItem(value: 'Name', child: Text('Name')),
-  //       DropdownMenuItem(value: 'Email', child: Text('Email')),
-  //       DropdownMenuItem(value: 'Mobile', child: Text('Mobile')),
-  //       DropdownMenuItem(value: 'Country', child: Text('Country')),
-  //     ],
-  //     onChanged: (value) {
-  //       if (value == null) return;
 
-  //       setState(() {
-  //         _selectedFilter = value;
-  //       });
-  //     },
-  //   );
-  // }
   Widget _buildEmployeeCount(BuildContext context) {
     return BlocBuilder<EmployeeDashboardBloc, EmployeeDashboardState>(
       builder: (context, state) {
@@ -1008,31 +463,10 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardMobileView> {
       },
     );
   }
-  // Widget _buildEmployeeCount(BuildContext context) {
-  //   return BlocBuilder<EmployeeDashboardBloc, EmployeeDashboardState>(
-  //     builder: (context, state) {
-  //       if (state is EmployeeDashboardSuccess) {
-  //         return Row(
-  //           children: [
-  //             Text(
-  //               '${state.employees.length} Employees',
-  //               style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-  //             ),
-  //           ],
-  //         );
-  //       }
-
-  //       return const SizedBox();
-  //     },
-  //   );
-  // }
 
   Widget _buildEmployeeList(BuildContext context) {
     return BlocBuilder<EmployeeDashboardBloc, EmployeeDashboardState>(
       builder: (context, state) {
-        // if (state is EmployeeDashboardLoading) {
-        //   return const Center(child: CircularProgressIndicator());
-        // }
         if (state is EmployeeDashboardLoading) {
           return SizedBox(
             height: 300,
@@ -1092,9 +526,6 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardMobileView> {
             ),
           );
         }
-        // if (state is EmployeeDashboardFailure) {
-        //   return Center(child: Text(state.message, textAlign: TextAlign.center));
-        // }
 
         if (state is EmployeeDashboardSuccess) {
           final employees = _getFilteredEmployees(state.employees);
@@ -1125,7 +556,6 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardMobileView> {
                     _showDeleteDialog(employee);
                   },
                 );
-                //       },
               },
             ),
           );
@@ -1191,27 +621,6 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardMobileView> {
       ),
     );
   }
-  // Widget _buildEmptyState({String message = 'No employees found'}) {
-  //   return SizedBox(
-  //     height: 300,
-  //     child: Center(
-  //       child: Column(
-  //         mainAxisAlignment: MainAxisAlignment.center,
-  //         children: [
-  //           Icon(Icons.people_outline, size: 64, color: Colors.grey.shade500),
-  //           const SizedBox(height: 16),
-  //           Text(
-  //             message,
-  //             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-  //             textAlign: TextAlign.center,
-  //           ),
-  //           const SizedBox(height: 8),
-  //           const Text('Try changing your search or filter.'),
-  //         ],
-  //       ),
-  //     ),
-  //   );
-  // }
 
   Widget _buildThemeButton(BuildContext context) {
     final isDark = AppThemeController.themeMode.value == ThemeMode.dark;

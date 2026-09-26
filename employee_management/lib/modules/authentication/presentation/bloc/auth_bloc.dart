@@ -27,25 +27,39 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
     on<_AuthUserChanged>(_onAuthUserChanged);
 
+    // Firebase authStateChanges is the source of truth
+    // for the current authentication state.
     _authSubscription = authRepository.authStateChanges.listen((user) {
       add(_AuthUserChanged(user));
     });
   }
 
+  // ------------------------------------------------------------
+  // AUTH STARTED
+  // ------------------------------------------------------------
+
   Future<void> _onAuthStarted(AuthStarted event, Emitter<AuthState> emit) async {
-    // Firebase authStateChanges is already responsible
-    // for notifying us about the current authentication state.
-    //
-    // No need to manually emit Authenticated/Unauthenticated here.
+    // authStateChanges already provides the current
+    // authentication state.
   }
 
+  // ------------------------------------------------------------
+  // AUTH USER CHANGED
+  // ------------------------------------------------------------
+
   void _onAuthUserChanged(_AuthUserChanged event, Emitter<AuthState> emit) {
-    if (event.user != null) {
-      emit(Authenticated(user: event.user!));
+    final user = event.user;
+
+    if (user != null) {
+      emit(Authenticated(user: user));
     } else {
       emit(Unauthenticated());
     }
   }
+
+  // ------------------------------------------------------------
+  // LOGIN
+  // ------------------------------------------------------------
 
   Future<void> _onLoginRequested(LoginRequested event, Emitter<AuthState> emit) async {
     emit(AuthLoading());
@@ -53,16 +67,20 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     try {
       await authRepository.login(email: event.email, password: event.password);
 
-      // Don't emit Authenticated here.
+      // Do not emit Authenticated here.
       //
-      // Firebase authStateChanges will emit the new user
-      // and _onAuthUserChanged will update the state.
+      // Firebase authStateChanges will emit the authenticated
+      // user and _onAuthUserChanged will handle it.
     } on FirebaseAuthException catch (e) {
       emit(AuthError(message: _getFirebaseErrorMessage(e)));
     } catch (e) {
       emit(AuthError(message: e.toString()));
     }
   }
+
+  // ------------------------------------------------------------
+  // REGISTER
+  // ------------------------------------------------------------
 
   Future<void> _onRegisterRequested(RegisterRequested event, Emitter<AuthState> emit) async {
     emit(AuthLoading());
@@ -82,6 +100,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     }
   }
 
+  // ------------------------------------------------------------
+  // FORGOT PASSWORD
+  // ------------------------------------------------------------
+
   Future<void> _onForgotPasswordRequested(ForgotPasswordRequested event, Emitter<AuthState> emit) async {
     emit(AuthLoading());
 
@@ -96,35 +118,53 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     }
   }
 
+  // ------------------------------------------------------------
+  // GOOGLE SIGN IN
+  // ------------------------------------------------------------
+
   Future<void> _onGoogleSignInRequested(GoogleSignInRequested event, Emitter<AuthState> emit) async {
     emit(AuthLoading());
 
     try {
       await authRepository.signInWithGoogle();
 
-      // Don't emit Authenticated here.
-      // authStateChanges handles it.
+      // Do not emit Authenticated here.
+      //
+      // Firebase authStateChanges will emit the new user.
     } on FirebaseAuthException catch (e) {
       emit(AuthError(message: _getFirebaseErrorMessage(e)));
     } catch (e) {
       emit(AuthError(message: e.toString()));
     }
   }
+
+  // ------------------------------------------------------------
+  // LOGOUT
+  // ------------------------------------------------------------
 
   Future<void> _onLogoutRequested(LogoutRequested event, Emitter<AuthState> emit) async {
-    emit(AuthLoading());
-
     try {
+      // IMPORTANT:
+      // Do NOT emit AuthLoading here.
+      //
+      // authStateChanges is responsible for changing the
+      // authentication state to Unauthenticated.
       await authRepository.logout();
 
-      // authStateChanges will emit null,
-      // which results in Unauthenticated.
+      // Firebase authStateChanges will emit null.
+      //
+      // null -> _AuthUserChanged(null)
+      //      -> Unauthenticated()
     } on FirebaseAuthException catch (e) {
       emit(AuthError(message: _getFirebaseErrorMessage(e)));
     } catch (e) {
       emit(AuthError(message: e.toString()));
     }
   }
+
+  // ------------------------------------------------------------
+  // FIREBASE ERROR MESSAGES
+  // ------------------------------------------------------------
 
   String _getFirebaseErrorMessage(FirebaseAuthException e) {
     switch (e.code) {
@@ -157,12 +197,21 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     }
   }
 
+  // ------------------------------------------------------------
+  // CLOSE
+  // ------------------------------------------------------------
+
   @override
   Future<void> close() async {
     await _authSubscription?.cancel();
+
     return super.close();
   }
 }
+
+// ------------------------------------------------------------
+// INTERNAL AUTH EVENT
+// ------------------------------------------------------------
 
 class _AuthUserChanged extends AuthEvent {
   final User? user;
