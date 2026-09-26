@@ -1106,49 +1106,28 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardMobileView> {
           if (employees.isEmpty) {
             return _buildEmptyState(message: 'No employees match your search');
           }
+          return SizedBox(
+            height: 500,
+            child: ListView.builder(
+              itemCount: employees.length,
+              itemBuilder: (context, index) {
+                final employee = employees[index];
 
-          return LayoutBuilder(
-            builder: (context, constraints) {
-              final width = constraints.maxWidth;
-
-              int crossAxisCount;
-
-              if (width >= 1100) {
-                crossAxisCount = 3;
-              } else if (width >= 700) {
-                crossAxisCount = 2;
-              } else {
-                crossAxisCount = 1;
-              }
-
-              return GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: employees.length,
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
-                  mainAxisExtent: 330,
-                ),
-                itemBuilder: (context, index) {
-                  final employee = employees[index];
-
-                  return EmployeeCardWidget(
-                    employee: employee,
-                    onView: () {
-                      _showEmployeeDetails(employee);
-                    },
-                    onEdit: () {
-                      _showEditEmployeeDialog(employee);
-                    },
-                    onDelete: () {
-                      _showDeleteDialog(employee);
-                    },
-                  );
-                },
-              );
-            },
+                return EmployeeCardWidget(
+                  employee: employee,
+                  onView: () {
+                    _showEmployeeDetails(employee);
+                  },
+                  onEdit: () {
+                    _showEditEmployeeDialog(employee);
+                  },
+                  onDelete: () {
+                    _showDeleteDialog(employee);
+                  },
+                );
+                //       },
+              },
+            ),
           );
         }
 

@@ -25,25 +25,18 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
     on<LogoutRequested>(_onLogoutRequested);
 
-    _authSubscription = authRepository.authStateChanges.listen((user) {
-      if (user != null) {
-        add(_AuthUserChanged(user));
-      } else {
-        add(_AuthUserChanged(null));
-      }
-    });
-
     on<_AuthUserChanged>(_onAuthUserChanged);
+
+    _authSubscription = authRepository.authStateChanges.listen((user) {
+      add(_AuthUserChanged(user));
+    });
   }
 
   Future<void> _onAuthStarted(AuthStarted event, Emitter<AuthState> emit) async {
-    final user = authRepository.currentUser;
-
-    if (user != null) {
-      emit(Authenticated(user: user));
-    } else {
-      emit(Unauthenticated());
-    }
+    // Firebase authStateChanges is already responsible
+    // for notifying us about the current authentication state.
+    //
+    // No need to manually emit Authenticated/Unauthenticated here.
   }
 
   void _onAuthUserChanged(_AuthUserChanged event, Emitter<AuthState> emit) {
@@ -59,6 +52,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
     try {
       await authRepository.login(email: event.email, password: event.password);
+
+      // Don't emit Authenticated here.
+      //
+      // Firebase authStateChanges will emit the new user
+      // and _onAuthUserChanged will update the state.
     } on FirebaseAuthException catch (e) {
       emit(AuthError(message: _getFirebaseErrorMessage(e)));
     } catch (e) {
@@ -103,6 +101,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
     try {
       await authRepository.signInWithGoogle();
+
+      // Don't emit Authenticated here.
+      // authStateChanges handles it.
     } on FirebaseAuthException catch (e) {
       emit(AuthError(message: _getFirebaseErrorMessage(e)));
     } catch (e) {
@@ -115,6 +116,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
     try {
       await authRepository.logout();
+
+      // authStateChanges will emit null,
+      // which results in Unauthenticated.
+    } on FirebaseAuthException catch (e) {
+      emit(AuthError(message: _getFirebaseErrorMessage(e)));
     } catch (e) {
       emit(AuthError(message: e.toString()));
     }
@@ -152,8 +158,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }
 
   @override
-  Future<void> close() {
-    _authSubscription?.cancel();
+  Future<void> close() async {
+    await _authSubscription?.cancel();
     return super.close();
   }
 }
