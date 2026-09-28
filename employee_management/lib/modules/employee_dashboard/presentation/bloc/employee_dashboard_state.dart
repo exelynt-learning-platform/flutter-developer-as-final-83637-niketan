@@ -16,11 +16,7 @@ class EmployeeDashboardSuccess extends EmployeeDashboardState {
 
 class CreateEmployeeLoading extends EmployeeDashboardState {}
 
-class CreateEmployeeSuccess extends EmployeeDashboardState {
-  final GetAllEmployeesAttributeModel employee;
-
-  CreateEmployeeSuccess({required this.employee});
-}
+class CreateEmployeeSuccess extends EmployeeDashboardState {}
 
 class CreateEmployeeFailure extends EmployeeDashboardState {
   final String message;

@@ -15,10 +15,13 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:get_it/get_it.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'package:mocktail/mocktail.dart';
+
+/// ---------------------------------------------------------------------------
+/// MOCKS
+/// ---------------------------------------------------------------------------
 
 class MockFirebaseAuth extends Mock implements FirebaseAuth {}
 
@@ -38,34 +41,41 @@ class MockHttpClient extends Mock implements http.Client {}
 
 class MockAuthRepository extends Mock implements AuthRepository {}
 
+class MockGetAllEmployeesUseCase extends Mock implements GetAllEmployeesUseCase {}
+
 class FakeAuthCredential extends Fake implements AuthCredential {}
 
 class FakeUri extends Fake implements Uri {}
 
-class FakeGetAllEmployeesUseCase extends GetAllEmployeesUseCase {
-  final List<GetAllEmployeesAttributeModel> employees;
+/// ---------------------------------------------------------------------------
+/// TEST HELPERS
+/// ---------------------------------------------------------------------------
 
-  FakeGetAllEmployeesUseCase({this.employees = const []});
+EmployeeDashboardBloc createEmployeeDashboardBloc({List<GetAllEmployeesAttributeModel> employees = const []}) {
+  final useCase = MockGetAllEmployeesUseCase();
 
-  @override
-  Future<List<GetAllEmployeesAttributeModel>> getAllEmployees() async => employees;
+  when(() => useCase.getAllEmployees()).thenAnswer((_) async => employees);
 
-  @override
-  Future<bool> createEmployee(CreateEmployeeRequestModel request) async => true;
+  when(() => useCase.createEmployee(any())).thenAnswer((_) async => true);
 
-  @override
-  Future<bool> updateEmployee(String id, CreateEmployeeRequestModel request) async => true;
+  when(() => useCase.updateEmployee(any(), any())).thenAnswer((_) async => true);
 
-  @override
-  Future<bool> deleteEmployee(String id) async => true;
+  when(() => useCase.deleteEmployee(any())).thenAnswer((_) async => true);
+
+  return EmployeeDashboardBloc(getAllEmployeesUseCase: useCase);
 }
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
   setUpAll(() {
     registerFallbackValue(FakeAuthCredential());
     registerFallbackValue(FakeUri());
   });
+
+  // =========================================================================
+  // AUTH REPOSITORY TESTS
+  // =========================================================================
 
   group('AuthRepositoryImpl', () {
     late MockFirebaseAuth mockFirebaseAuth;
@@ -75,6 +85,7 @@ void main() {
     setUp(() {
       mockFirebaseAuth = MockFirebaseAuth();
       mockGoogleSignIn = MockGoogleSignIn();
+
       repository = AuthRepositoryImpl(firebaseAuth: mockFirebaseAuth, googleSignIn: mockGoogleSignIn);
     });
 
@@ -88,6 +99,7 @@ void main() {
       final result = await repository.login(email: 'test@example.com', password: 'password123');
 
       expect(result, same(userCredential));
+
       verify(() => mockFirebaseAuth.signInWithEmailAndPassword(email: 'test@example.com', password: 'password123')).called(1);
     });
 
@@ -98,14 +110,19 @@ void main() {
       when(
         () => mockFirebaseAuth.createUserWithEmailAndPassword(email: 'test@example.com', password: 'password123'),
       ).thenAnswer((_) async => userCredential);
+
       when(() => userCredential.user).thenReturn(createdUser);
+
       when(() => createdUser.updateDisplayName('Jane')).thenAnswer((_) async {});
+
       when(() => createdUser.reload()).thenAnswer((_) async {});
 
       final result = await repository.register(name: 'Jane', email: 'test@example.com', password: 'password123');
 
       expect(result, same(userCredential));
+
       verify(() => createdUser.updateDisplayName('Jane')).called(1);
+
       verify(() => createdUser.reload()).called(1);
     });
 
@@ -123,27 +140,38 @@ void main() {
       final userCredential = MockUserCredential();
 
       when(() => mockGoogleSignIn.authenticate()).thenAnswer((_) async => googleUser);
+
       when(() => googleUser.authentication).thenReturn(googleAuth);
+
       when(() => googleAuth.idToken).thenReturn('token-id');
+
       when(() => mockFirebaseAuth.signInWithCredential(any(that: isA<AuthCredential>()))).thenAnswer((_) async => userCredential);
 
       final result = await repository.signInWithGoogle();
 
       expect(result, same(userCredential));
+
       verify(() => mockGoogleSignIn.authenticate()).called(1);
+
       verify(() => mockFirebaseAuth.signInWithCredential(any(that: isA<AuthCredential>()))).called(1);
     });
 
     test('logout signs out both Google and Firebase auth', () async {
       when(() => mockGoogleSignIn.signOut()).thenAnswer((_) async {});
+
       when(() => mockFirebaseAuth.signOut()).thenAnswer((_) async {});
 
       await repository.logout();
 
       verify(() => mockGoogleSignIn.signOut()).called(1);
+
       verify(() => mockFirebaseAuth.signOut()).called(1);
     });
   });
+
+  // =========================================================================
+  // EMPLOYEE REPOSITORY TESTS
+  // =========================================================================
 
   group('EmployeeDashboardRepoImpl', () {
     late MockHttpClient mockClient;
@@ -151,6 +179,7 @@ void main() {
 
     setUp(() {
       mockClient = MockHttpClient();
+
       repository = EmployeeDashboardRepoImpl(client: mockClient);
     });
 
@@ -239,11 +268,16 @@ void main() {
     });
   });
 
+  // =========================================================================
+  // AUTH BLOC TESTS
+  // =========================================================================
+
   group('AuthBloc', () {
     late MockAuthRepository mockAuthRepository;
 
     setUp(() {
       mockAuthRepository = MockAuthRepository();
+
       when(() => mockAuthRepository.authStateChanges).thenAnswer((_) => const Stream.empty());
     });
 
@@ -254,10 +288,11 @@ void main() {
 
       final bloc = AuthBloc(authRepository: mockAuthRepository);
 
-      expectLater(bloc.stream, emitsInOrder([isA<AuthLoading>(), isA<AuthError>()]));
+      final expectation = expectLater(bloc.stream, emitsInOrder([isA<AuthLoading>(), isA<AuthError>()]));
 
       bloc.add(LoginRequested(email: 'user@example.com', password: 'wrongpass'));
-      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      await expectation;
       await bloc.close();
     });
 
@@ -266,10 +301,11 @@ void main() {
 
       final bloc = AuthBloc(authRepository: mockAuthRepository);
 
-      expectLater(bloc.stream, emitsInOrder([isA<AuthLoading>(), isA<PasswordResetSent>()]));
+      final expectation = expectLater(bloc.stream, emitsInOrder([isA<AuthLoading>(), isA<PasswordResetSent>()]));
 
       bloc.add(ForgotPasswordRequested(email: 'user@example.com'));
-      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      await expectation;
       await bloc.close();
     });
 
@@ -280,18 +316,24 @@ void main() {
 
       final bloc = AuthBloc(authRepository: mockAuthRepository);
 
-      expectLater(bloc.stream, emitsInOrder([isA<AuthLoading>(), isA<AuthError>()]));
+      final expectation = expectLater(bloc.stream, emitsInOrder([isA<AuthLoading>(), isA<AuthError>()]));
 
       bloc.add(GoogleSignInRequested());
-      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      await expectation;
       await bloc.close();
     });
   });
 
+  // =========================================================================
+  // EMPLOYEE DASHBOARD BLOC TESTS
+  // =========================================================================
+
   group('EmployeeDashboardBloc', () {
+    late List<GetAllEmployeesAttributeModel> employees;
+
     setUp(() {
-      GetIt.instance.reset();
-      final employees = [
+      employees = [
         GetAllEmployeesAttributeModel(
           id: '1',
           name: 'Alice',
@@ -302,56 +344,38 @@ void main() {
           district: 'Mumbai',
         ),
       ];
-
-      GetIt.instance.registerSingleton<GetAllEmployeesUseCase>(FakeGetAllEmployeesUseCase(employees: employees));
-    });
-
-    tearDown(() {
-      GetIt.instance.reset();
     });
 
     test('updates to loading and success state when employee list loads', () async {
-      final bloc = EmployeeDashboardBloc();
-      final employees = [
-        GetAllEmployeesAttributeModel(
-          id: '1',
-          name: 'Alice',
-          emailId: 'alice@example.com',
-          mobile: '9999999999',
-          country: 'India',
-          state: 'Maharashtra',
-          district: 'Mumbai',
-        ),
-      ];
+      final bloc = createEmployeeDashboardBloc(employees: employees);
 
       bloc.emit(EmployeeDashboardLoading());
+
       bloc.emit(EmployeeDashboardSuccess(employees: employees));
 
       expect(bloc.state, isA<EmployeeDashboardSuccess>());
+
       expect((bloc.state as EmployeeDashboardSuccess).employees, hasLength(1));
+
       await bloc.close();
     });
 
     test('updates to create loading and success state when a new employee is created', () async {
-      final bloc = EmployeeDashboardBloc();
-      final employee = GetAllEmployeesAttributeModel(
-        id: '1',
-        name: 'Alice',
-        emailId: 'alice@example.com',
-        mobile: '9999999999',
-        country: 'India',
-        state: 'Maharashtra',
-        district: 'Mumbai',
-      );
+      final bloc = createEmployeeDashboardBloc(employees: employees);
 
       bloc.emit(CreateEmployeeLoading());
-      bloc.emit(CreateEmployeeSuccess(employee: employee));
+
+      bloc.emit(CreateEmployeeSuccess());
 
       expect(bloc.state, isA<CreateEmployeeSuccess>());
-      expect((bloc.state as CreateEmployeeSuccess).employee.name, 'Alice');
+
       await bloc.close();
     });
   });
+
+  // =========================================================================
+  // LOGIN SCREEN WIDGET TESTS
+  // =========================================================================
 
   group('LoginScreen widget', () {
     late MockAuthRepository mockAuthRepository;
@@ -359,11 +383,15 @@ void main() {
 
     setUp(() {
       mockAuthRepository = MockAuthRepository();
+
       when(() => mockAuthRepository.authStateChanges).thenAnswer((_) => const Stream.empty());
+
       authBloc = AuthBloc(authRepository: mockAuthRepository);
     });
 
-    tearDown(() => authBloc.close());
+    tearDown(() async {
+      await authBloc.close();
+    });
 
     testWidgets('shows validation errors when fields are empty', (tester) async {
       await tester.pumpWidget(
@@ -374,9 +402,11 @@ void main() {
       );
 
       await tester.tap(find.text('Login'));
+
       await tester.pump();
 
       expect(find.text('Email is required'), findsOneWidget);
+
       expect(find.text('Password is required'), findsOneWidget);
     });
 
@@ -389,11 +419,16 @@ void main() {
       );
 
       authBloc.emit(AuthError(message: 'Invalid email or password.'));
+
       await tester.pump();
 
       expect(find.text('Invalid email or password.'), findsOneWidget);
     });
   });
+
+  // =========================================================================
+  // EMPLOYEE DASHBOARD MOBILE VIEW TESTS
+  // =========================================================================
 
   group('EmployeeDashboardMobileView widget', () {
     final sampleEmployees = [
@@ -418,7 +453,8 @@ void main() {
     ];
 
     testWidgets('filters employees by selected field with live API data', (tester) async {
-      final bloc = EmployeeDashboardBloc();
+      final bloc = createEmployeeDashboardBloc(employees: sampleEmployees);
+
       bloc.emit(EmployeeDashboardSuccess(employees: sampleEmployees));
 
       await tester.pumpWidget(
@@ -429,14 +465,19 @@ void main() {
       );
 
       await tester.enterText(find.byType(TextField).first, '202');
+
       await tester.pump();
 
       expect(find.text('Bob Smith'), findsOneWidget);
+
       expect(find.text('Alice Johnson'), findsNothing);
+
+      await bloc.close();
     });
 
     testWidgets('shows empty state when no employee matches search', (tester) async {
-      final bloc = EmployeeDashboardBloc();
+      final bloc = createEmployeeDashboardBloc(employees: sampleEmployees);
+
       bloc.emit(EmployeeDashboardSuccess(employees: sampleEmployees));
 
       await tester.pumpWidget(
@@ -447,13 +488,17 @@ void main() {
       );
 
       await tester.enterText(find.byType(TextField).first, 'no-match');
+
       await tester.pump();
 
       expect(find.text('No employees match your search'), findsOneWidget);
+
+      await bloc.close();
     });
 
     testWidgets('shows loading indicator during data fetch', (tester) async {
-      final bloc = EmployeeDashboardBloc();
+      final bloc = createEmployeeDashboardBloc();
+
       bloc.emit(EmployeeDashboardLoading());
 
       await tester.pumpWidget(
@@ -464,10 +509,13 @@ void main() {
       );
 
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+      await bloc.close();
     });
 
     testWidgets('shows delete confirmation dialog for an employee', (tester) async {
-      final bloc = EmployeeDashboardBloc();
+      final bloc = createEmployeeDashboardBloc(employees: sampleEmployees);
+
       bloc.emit(EmployeeDashboardSuccess(employees: sampleEmployees));
 
       await tester.pumpWidget(
@@ -478,11 +526,16 @@ void main() {
       );
 
       await tester.tap(find.byIcon(Icons.delete_outline).first);
+
       await tester.pumpAndSettle();
 
       expect(find.text('Delete Employee'), findsOneWidget);
+
       expect(find.text('Are you sure you want to delete Alice Johnson?'), findsOneWidget);
+
       expect(find.text('Delete'), findsWidgets);
+
+      await bloc.close();
     });
   });
 }
